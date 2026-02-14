@@ -1,24 +1,24 @@
 ---
 # yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/main/schema/compose-spec.json
 services:
-  caddy:
-    image: caddy:2.10.2-alpine@sha256:953131cfea8e12bfe1c631a36308e9660e4389f0c3dfb3be957044d3ac92d446
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN:?DOMAIN environment variable is required}
-      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-}
-      ACTIVITYPUB_TARGET: ${ACTIVITYPUB_TARGET:-https://ap.ghost.org}
-    volumes:
-      - ./caddy:/etc/caddy
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - ghost
-    networks:
-      - ghost_network
+  # caddy:
+  #   image: caddy:2.10.2-alpine@sha256:953131cfea8e12bfe1c631a36308e9660e4389f0c3dfb3be957044d3ac92d446
+  #   restart: always
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   environment:
+  #     DOMAIN: ${DOMAIN:?DOMAIN environment variable is required}
+  #     ADMIN_DOMAIN: ${ADMIN_DOMAIN:-}
+  #     ACTIVITYPUB_TARGET: ${ACTIVITYPUB_TARGET:-https://ap.ghost.org}
+  #   volumes:
+  #     - ./caddy:/etc/caddy
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   depends_on:
+  #     - ghost
+  #   networks:
+  #     - ghost_network
 
   ghost:
     # Do not alter this without updating the Tinybird Sync container as well
@@ -42,7 +42,8 @@ services:
       tinybird__tracker__datasource: analytics_events
       tinybird__stats__endpoint: ${TINYBIRD_API_URL:-https://api.tinybird.co}
     volumes:
-      - ${UPLOAD_LOCATION:-./data/ghost}:/var/lib/ghost/content
+      # - ${UPLOAD_LOCATION:-./data/ghost}:/var/lib/ghost/content
+      - ghost_data:/var/lib/ghost/content
     depends_on:
       db:
         condition: service_healthy
@@ -55,8 +56,8 @@ services:
       activitypub:
         condition: service_started
         required: false
-    networks:
-      - ghost_network
+#     networks:
+#       - ghost_network
 
   db:
     image: mysql:8.0.44@sha256:f37951fc3753a6a22d6c7bf6978c5e5fefcf6f31814d98c582524f98eae52b21
@@ -70,7 +71,8 @@ services:
       MYSQL_DATABASE: ghost
       MYSQL_MULTIPLE_DATABASES: activitypub
     volumes:
-      - ${MYSQL_DATA_LOCATION:-./data/mysql}:/var/lib/mysql
+      # - ${MYSQL_DATA_LOCATION:-./data/mysql}:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: mysqladmin ping -p$$MYSQL_ROOT_PASSWORD -h 127.0.0.1
@@ -78,8 +80,8 @@ services:
       start_period: 30s
       start_interval: 10s
       retries: 120
-    networks:
-      - ghost_network
+#     networks:
+#       - ghost_network
 
   traffic-analytics:
     image: ghost/traffic-analytics:1.0.74@sha256:375b0524e3e05b127662baa665d937909d11fbc909bab3bbbc3131b668b64d60
@@ -96,8 +98,8 @@ services:
       TINYBIRD_TRACKER_TOKEN: ${TINYBIRD_TRACKER_TOKEN:-}
       LOG_LEVEL: debug
     profiles: [analytics]
-    networks:
-      - ghost_network
+#     networks:
+#       - ghost_network
 
   activitypub:
     image: ghcr.io/tryghost/activitypub:1.1.0@sha256:39c212fe23603b182d68e67d555c6b9b04b1e57459dfc0bef26d6e4980eb04d1
@@ -105,7 +107,8 @@ services:
     expose:
       - "8080"
     volumes:
-      - ${UPLOAD_LOCATION:-./data/ghost}:/opt/activitypub/content
+      # - ${UPLOAD_LOCATION:-./data/ghost}:/opt/activitypub/content
+      - ghost_data:/opt/activitypub/content
     environment:
       # See https://github.com/TryGhost/ActivityPub/blob/main/docs/env-vars.md
       NODE_ENV: production
@@ -121,8 +124,8 @@ services:
       activitypub-migrate:
         condition: service_completed_successfully
     profiles: [activitypub]
-    networks:
-      - ghost_network
+#     networks:
+#       - ghost_network
 
   # Supporting Services
 
@@ -136,8 +139,8 @@ services:
       - tinybird_home:/home/tinybird
       - tinybird_files:/data/tinybird
     profiles: [analytics]
-    networks:
-      - ghost_network
+#     networks:
+#       - ghost_network
     tty: false
     restart: no
 
@@ -159,8 +162,8 @@ services:
     depends_on:
       tinybird-login:
         condition: service_completed_successfully
-    networks:
-      - ghost_network
+#     networks:
+#       - ghost_network
     profiles: [analytics]
     restart: no
 
@@ -180,16 +183,16 @@ services:
       tinybird-sync:
         condition: service_completed_successfully
     profiles: [analytics]
-    networks:
-      - ghost_network
+#     networks:
+#       - ghost_network
     tty: true
 
   activitypub-migrate:
     image: ghcr.io/tryghost/activitypub-migrations:1.1.0@sha256:b3ab20f55d66eb79090130ff91b57fe93f8a4254b446c2c7fa4507535f503662
     environment:
       MYSQL_DB: mysql://${DATABASE_USER:-ghost}:${DATABASE_PASSWORD:?DATABASE_PASSWORD environment variable is required}@tcp(db:3306)/activitypub
-    networks:
-      - ghost_network
+#     networks:
+#       - ghost_network
     depends_on:
       db:
         condition: service_healthy
@@ -197,11 +200,13 @@ services:
     restart: no
 
 volumes:
+  ghost_data:
+  mysql_data:
   caddy_data:
   caddy_config:
   tinybird_files:
   tinybird_home:
   traffic_analytics_data:
 
-networks:
-  ghost_network:
+# networks:
+#   ghost_network:
